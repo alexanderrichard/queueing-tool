@@ -54,7 +54,7 @@ Example:
     #block(name=block-1, threads=2, memory=2000, subtasks=10, hours=24)
       echo "process subtask $SUBTASK_ID of $N_SUBTASKS"
       ./processData data-dir/data.part-$SUBTASK_ID
-
+      
     #block(name=block-2, threads=10, memory=10000, hours=2)
       ./doSomethingThatRequiresTheResultsFromBlock-1
       ./somethingElse
@@ -65,6 +65,10 @@ The first block has 10 subtasks that all process different data. The
 second block is not started before all subtasks of the first block are
 finished. Note that all block parameters that are not specified are set
 to the default values.
+
+In order to submit the above script, save it as exampleScript.sh and invoke
+
+     qsub exampleScript.sh
 
 # (2) job status ###############################################################
 
