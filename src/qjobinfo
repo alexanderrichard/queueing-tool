@@ -1,0 +1,11 @@
+#!/bin/bash
+
+SCHEDULER_DIR="/usr/queue"
+JOB_ID=$@
+
+if [ "${JOB_ID}" = "" ]; then
+    echo "No job id specified."
+    exit
+fi
+
+${SCHEDULER_DIR}/scheduler jobinfo $JOB_ID

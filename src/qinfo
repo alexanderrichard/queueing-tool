@@ -1,0 +1,5 @@
+#!/bin/bash
+
+SCHEDULER_DIR="/usr/queue"
+
+${SCHEDULER_DIR}/scheduler info

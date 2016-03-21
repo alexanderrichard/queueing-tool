@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# pass ids of jobs to delete as arguments
+
+SCHEDULER_DIR="/usr/queue"
+
+${SCHEDULER_DIR}/scheduler del $@

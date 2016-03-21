@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# $1: *.q.sh [params] (the script to submit)
+
+SCHEDULER_DIR="/usr/queue"
+
+SCRIPT=$@
+DIR=$(pwd)
+
+LOCAL_EXEC=$1
+if [ "$LOCAL_EXEC" == "-r" ]; then
+    SCRIPT=$(echo $SCRIPT | sed -e "s/-r //")
+fi
+
+SCRIPTNAME=$(echo $SCRIPT | sed -e "s/ .*//")
+
+if [ "${SCRIPTNAME}" = "" ]; then
+    echo "No script to execute specified."
+    exit
+fi
+
+if [ ! -e ${SCRIPTNAME} ]; then
+    echo "${SCRIPTNAME} not found."
+    exit
+fi
+
+if [ "$LOCAL_EXEC" == "-r" ]; then
+    ${SCHEDULER_DIR}/exec_local "$SCRIPT"
+else
+    ${SCHEDULER_DIR}/scheduler "submit" "$SCRIPT" "$DIR" 2>&1 &
+fi
