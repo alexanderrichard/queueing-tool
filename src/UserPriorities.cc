@@ -78,7 +78,7 @@ void UserPriorities::computePriority() {
 		// Factor 1.01 prevents priorities from becoming zero. Only for psychological reasons.
 		f32 max = std::max(1.01, (*std::max_element(penalty_.begin(), penalty_.end())) * 1.01);
 		for (u32 i = 0; i < penalty_.size(); i++) {
-			priority_.at(i) = (1.0 - penalty_.at(i) / max) * priorityFactor_.at(i);
+			priority_.at(i) = std::min(1.0, (1.0 - penalty_.at(i) / max) * priorityFactor_.at(i));
 		}
 		needsPriorityUpdate_ = false;
 	}
