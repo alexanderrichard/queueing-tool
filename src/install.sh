@@ -9,7 +9,6 @@ cp ./q* /usr/queue/
 cp ./_* /usr/queue/
 cp ./scheduler /usr/queue
 cp ./exec_local /usr/queue
-cp ./README /usr/queue
 
 echo "threads 10" > /usr/queue/queue.config
 echo "memory 30000" >> /usr/queue/queue.config
