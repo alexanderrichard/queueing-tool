@@ -63,6 +63,14 @@ void QueueStatistics::readQueueConfig() {
 	}
 	queueConfiguration_.abortOnTimeLimit = (line.substr(17).compare("true") == 0);
 	getline(f, line);
+	identifier = line.substr(0, 14);
+	if (identifier.compare("addUnkownUsers") != 0) {
+		std::cerr << "ERROR: Wrong format of " << root << "/queue.config." << std::endl;
+		Lock::unlock();
+		exit(1);
+	}
+	queueConfiguration_.addUnkownUsers = (line.substr(15).compare("true") == 0);
+	getline(f, line);
 	identifier = line.substr(0, 19);
 	if (identifier.compare("regeneration-factor") != 0) {
 		std::cerr << "ERROR: Wrong format of " << root << "/queue.config." << std::endl;
@@ -302,6 +310,18 @@ u32 QueueStatistics::addJob(const std::string& name, bool useGpu, u32 threads, u
 	j.script = script;
 	j.directory = directory;
 	j.priorityClass = 0;
+
+	// check if the user exists or if he should be created
+	if (!userPriorities_.userExists(j.user)) {
+		if (queueConfiguration_.addUnkownUsers) {
+			addUser(j.user);
+		}
+		else {
+			std::cerr << "ERROR: User " << j.user << " is not registered for the queue." << std::endl;
+			Lock::unlock();
+			exit(1);
+		}
+	}
 
 	jobs_.push_back(j);
 

@@ -40,7 +40,7 @@ private:
 	std::vector<f32> priority_;
 	std::vector<f32> priorityFactor_;
 	bool needsPriorityUpdate_;
-	void verifyUser(const std::string& user) const;
+	void verifyUser(const std::string& user, bool ignoreLock = false) const;
 	void computePriority();
 public:
 	UserPriorities();
@@ -49,6 +49,7 @@ public:
 	f32 getPriority(Job& j);
 	void addUser(const std::string& user, f32 priorityFactor);
 	void delUser(const std::string& user);
+	bool userExists(const std::string& user) const;
 	void read(bool ignoreLock = false);
 	void write();
 	void reset();

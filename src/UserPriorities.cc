@@ -65,10 +65,15 @@ void UserPriorities::write() {
 	f.close();
 }
 
-void UserPriorities::verifyUser(const std::string& user) const {
-	if (userToIndex_.find(user) == userToIndex_.end()) {
-		std::cerr << "Error: User " << user << " not known. Abort." << std::endl;
-		Lock::unlock();
+bool UserPriorities::userExists(const std::string& user) const {
+	return !(userToIndex_.find(user) == userToIndex_.end());
+}
+
+void UserPriorities::verifyUser(const std::string& user, bool ignoreLock) const {
+	if (!userExists(user)) {
+		std::cerr << "Error: User " << user << " not known or not registered for queue. Abort." << std::endl;
+		if (!ignoreLock)
+			Lock::unlock();
 		exit(1);
 	}
 }

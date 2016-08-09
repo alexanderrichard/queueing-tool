@@ -14,6 +14,7 @@ echo "threads 10" > /usr/queue/queue.config
 echo "memory 30000" >> /usr/queue/queue.config
 echo "gpus 1" >> /usr/queue/queue.config
 echo "abortOnTimeLimit true" >> /usr/queue/queue.config
+echo "addUnkownUsers false" >> /usr/queue/queue.config
 echo "regeneration-factor 0.05" >> /usr/queue/queue.config
 echo "max-priority-class 10" >> /usr/queue/queue.config
 

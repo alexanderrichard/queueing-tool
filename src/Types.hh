@@ -68,6 +68,7 @@ struct QueueConfiguration {
 	u32 occupiedThreads;
 	std::vector<bool> isGpuOccupied;
 	bool abortOnTimeLimit;
+	bool addUnkownUsers;
 	f32 decayFactor;
 	u32 maxPriorityClass;
 };
