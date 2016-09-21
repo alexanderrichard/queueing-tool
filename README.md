@@ -16,6 +16,7 @@ A tool for scheduling multiple parallelized jobs to a machine. Jobs are schedule
    * memory [int]: the maximal amount of memory (in MB) used by the queue
    * gpus [int]: the number of CUDA capable gpus on the system (usually 0 or 1)
    * abortOnTimeLimit [true/false]: if true abort jobs at time limit
+   * addUnkownUsers [true/false]: if true add a user when he first submits a job, else deny non-added users to submit jobs
    * regeneration-factor [float]: specify how fast priorities recover if a user does not have any job in the queue (close to 0: slow, close to 1: fast)
    * max-priority-class [int]: set highest priority class (see (C) for details)
 
