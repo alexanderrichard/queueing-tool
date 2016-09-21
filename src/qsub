@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# $1: *.q.sh [params] (the script to submit)
+#  useage: qsub [-r] script.q.sh [params]
 
 SCHEDULER_DIR="/usr/queue"
 
