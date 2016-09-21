@@ -152,6 +152,10 @@ void QueueStatistics::read(bool ignoreLock) {
 
 	// read the user priorities
 	userPriorities_.read(ignoreLock);
+
+	// wait 10ms to avoid read/write issues
+	clock_t t = clock();
+	while ( ((float)clock() - t) / CLOCKS_PER_SEC < 0.1) ;
 }
 
 void QueueStatistics::write() {
@@ -201,6 +205,10 @@ void QueueStatistics::write() {
 
 	// write the user priorities
 	userPriorities_.write();
+
+	// wait for 10ms to avoid read/write conflicts if hard drive is not yet properly synchronized
+	clock_t t = clock();
+	while ( ((float)clock() - t) / CLOCKS_PER_SEC < 0.01) ;
 }
 
 u32 QueueStatistics::getJobIndexById(u32 id) {
