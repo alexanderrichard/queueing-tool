@@ -34,6 +34,7 @@ public:
 	void read(bool ignoreLock = false);
 	void write();
 
+	bool exists(u32 id);
 	Job& job(u32 id) { return jobs_.at(getJobIndexById(id)); }
 	std::vector<Job>& jobs() { return jobs_; }
 

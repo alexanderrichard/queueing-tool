@@ -211,6 +211,14 @@ void QueueStatistics::write() {
 	while ( ((float)clock() - t) / CLOCKS_PER_SEC < 0.01) ;
 }
 
+bool QueueStatistics::exists(u32 id) {
+	for (u32 i = 0; i < jobs_.size(); i++) {
+		if (jobs_.at(i).id == id)
+			return true;
+	}
+	return false;
+}
+
 u32 QueueStatistics::getJobIndexById(u32 id) {
 	for (u32 i = 0; i < jobs_.size(); i++) {
 		if (jobs_.at(i).id == id)

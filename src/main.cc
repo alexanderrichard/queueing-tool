@@ -147,12 +147,14 @@ void execute(u32 id) {
 }
 
 void deleteJob(u32 id) {
-	// kill running processes
-	std::stringstream s;
-	s << root << "/_qdel.sh " << queue.job(id).pid;
-	system(s.str().c_str());
-	// remove job from the queue
-	queue.removeJob(id);
+	if (queue.exists(id)) {
+		// kill running processes
+		std::stringstream s;
+		s << root << "/_qdel.sh " << queue.job(id).pid;
+		system(s.str().c_str());
+		// remove job from the queue
+		queue.removeJob(id);
+	}
 }
 
 void resetQueue() {
