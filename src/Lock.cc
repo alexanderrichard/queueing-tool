@@ -11,10 +11,6 @@ sem_t* Lock::lock = 0;
 
 void Lock::waitForLock() {
 
-	// wait a random time (betweem 0 and 200ms) to avoid too many kernel threads to request the semaphore at the same time
-	clock_t t = clock();
-	while ( ((float)clock() - t) / CLOCKS_PER_SEC < 200.0 / (rand() % 1000 + 1)) ;
-
 	mode_t old_umask = umask(0);
 	lock = sem_open("qScheduler", O_CREAT, 0777, 1);
 	umask(old_umask);
@@ -47,10 +43,6 @@ void Lock::waitForLock() {
 }
 
 void Lock::unlock() {
-
-	// wait a random time (betweem 0 and 200ms) to avoid too many kernel threads to request the semaphore at the same time
-	clock_t t = clock();
-	while ( ((float)clock() - t) / CLOCKS_PER_SEC < 200.0 / (rand() % 1000 + 1)) ;
 
 	// unlock semaphore (semaphore is automatically closed on process termination)
 	if (sem_post(lock) == -1) {
