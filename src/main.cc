@@ -105,9 +105,6 @@ void execute(u32 id) {
 	}
 
 	/* run job */
-	// wait a random time (betweem 0 and 200ms) to avoid too many kernel threads to request the semaphore at the same time
-	clock_t t = clock();
-	while ( ((float)clock() - t) / CLOCKS_PER_SEC < 200.0 / (rand() % 1000 + 1)) ;
 	Lock::waitForLock();
 	queue.read();
 
