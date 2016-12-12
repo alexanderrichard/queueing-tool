@@ -1,7 +1,0 @@
-#!/bin/bash
-
-USER_NAME=$1
-
-SCHEDULER_DIR="/usr/queue"
-
-${SCHEDULER_DIR}/scheduler deluser $USER_NAME

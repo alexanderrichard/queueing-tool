@@ -1,7 +1,0 @@
-#!/bin/bash
-
-SCHEDULER_DIR="/usr/queue"
-
-sudo rm -f /dev/shm/sem.qScheduler
-${SCHEDULER_DIR}/scheduler reset
-sudo rm -f /dev/shm/sem.qScheduler

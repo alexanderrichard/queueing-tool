@@ -1,0 +1,128 @@
+#!/usr/bin/python2.7
+
+import argparse
+import os
+import subprocess
+import signal
+import socket
+from block_parser import Block_Parser
+
+
+def run_locally(block, args, subtask_id):
+    # create script file
+    tmp_script_file = '.' + block.values['name'] + '.' + str(subtask_id + 1) + '.local'
+    with open(tmp_script_file, 'w') as f:
+        f.write('#!/bin/bash\n')
+        f.write('export N_SUBTASKS=' + str(block.values['subtasks']) + '\n')
+        f.write('export SUBTASK_ID=' + str(subtask_id+1) + '\n')
+        f.write('\n'.join(block.values['script']))
+        f.close()
+    # run job
+    subprocess.call(['bash'] + [tmp_script_file] + args)
+    os.remove(tmp_script_file)
+
+
+def request_id(server_address):
+    try:
+        sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+        sock.settimeout(10.0)
+        sock.connect(server_address)
+        sock.sendall('get_id')
+        job_id = int( sock.recv(1024) )
+        sock.close()
+    except:
+        print 'request id: no answer from server'
+        exit()
+    return job_id
+
+
+def submit_job(script, server_address, block_idx, job_id, subtask_id, depends_on):
+    script_str = ' '.join(script)
+    args = ' --server_ip=' + server_address[0] \
+         + ' --server_port=' + str(server_address[1]) \
+         + ' --block_index=' + str(block_idx) \
+         + ' --job_id=' + str(job_id) \
+         + ' --subtask_id=' + str(subtask_id) \
+         + ' --user=' + os.getlogin()
+    if len(depends_on) > 0:
+        args = args + ' --depends_on=' + ','.join([ str(i) for i in depends_on ])
+    os.system('./job.py' + args + ' ' + script_str + ' &')
+
+
+def select_blocks(script, start_block, only_start_block = False):
+    b = Block_Parser()
+    blocks = b.parse(script)
+    # determine index of start block
+    start_idx = 0
+    if not start_block == '':
+        for block in blocks:
+            if block.values['name'] == start_block:
+                break
+            else:
+                start_idx = start_idx + 1
+    if start_idx >= len(blocks):
+        print 'block name ' + start_block + ' does not exist. Do not submit jobs.'
+        exit()
+    # return the relevant blocks
+    if only_start_block:
+        return blocks, range(start_idx, start_idx+1)
+    else:
+        return blocks, range(start_idx ,len(blocks))
+
+
+def main():
+
+    # parse arguments
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('script', type=str, nargs='+',
+                            help='Script (plus its parameters) to be submitted. Script parameters must not start with \'-\'. If they'
+                                  ' do so, pass them with escaped quotation marks and an escaped leading space like this: \\"\\ --foo\\".')
+    arg_parser.add_argument('-l','--local', action='store_true', help='Execute the script locally')
+    group = arg_parser.add_mutually_exclusive_group()
+    group.add_argument('-b','--block', type=str, default='', help='Only submit/execute the specified block')
+    group.add_argument('-s','--subtask', type=str, default='', nargs=2, help='Aruments for this option are a block name and a subtask id.'
+                                                                  'Only submit/execute the subtask id of the specified block.')
+    group.add_argument('-f','--from_block', type=str, default='', help='Submit/execute the specified block and all succeeding blocks')
+    arg_parser.add_argument('--server_ip', type=str, default='localhost', help='Ip address of the server')
+    arg_parser.add_argument('--server_port', type=int, default=1234, help='Port of the server')
+    args = arg_parser.parse_args()
+
+    server_address = (args.server_ip, args.server_port)
+
+    # determine blocks to execute
+    if not args.block == '':
+        blocks, block_indices = select_blocks(args.script[0], args.block, True)
+    elif not args.subtask == '':
+        blocks, block_indices = select_blocks(args.script[0], args.subtask[0], True)
+        try:
+            subtask_id = int(args.subtask[1])
+            assert subtask_id <= blocks[block_indices[0]].values['subtasks']
+            assert subtask_id > 0
+        except:
+            print 'block ' + args.subtask[0] + ': subtask id must be in the range 1,...,' + str(blocks[block_indices[0]].values['subtasks']) + ' but is ' + args.subtask[1]
+            exit()
+    elif not args.from_block == '':
+        blocks, block_indices = select_blocks(args.script[0], args.from_block, False)
+    else:
+        blocks, block_indices = select_blocks(args.script[0], '', False)
+
+    if args.local:
+        # local execution
+        for block_idx in block_indices:
+            subtask_ids = range(blocks[block_idx].values['subtasks']) if args.subtask == '' else [int(args.subtask[1])-1]
+            for subtask_id in subtask_ids:
+                run_locally(blocks[block_idx], args.script[1:], subtask_id)
+    else:
+        # submit jobs to queue server
+        depends_on = []
+        for block_idx in block_indices:
+            block_job_ids = []
+            subtask_ids = range(blocks[block_idx].values['subtasks']) if args.subtask == '' else [int(args.subtask[1])-1]
+            for subtask_id in subtask_ids:
+                job_id = request_id(server_address)
+                block_job_ids.append(job_id)
+                submit_job(args.script, server_address, block_idx, job_id, subtask_id, depends_on)
+            depends_on = block_job_ids
+
+if __name__ == '__main__':
+    main()

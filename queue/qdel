@@ -1,0 +1,66 @@
+#!/usr/bin/python2.7
+
+import socket
+import os
+import argparse
+
+
+def main():
+    
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--server_ip', type=str, default='localhost', help='ip address of the server')
+    arg_parser.add_argument('--server_port', type=int, default=1234, help='port of the server')
+    arg_parser.add_argument('jobs', type=str, nargs='+',
+                            help='Jobs to be deleted. Is a space separated list of job names, user names, or jod ids. For ids, jobs ranges separated by a \'-\' are also possible.')
+    # delete by id (default), name (-n), or user (-u)
+    group = arg_parser.add_mutually_exclusive_group()
+    group.add_argument('-n', action='store_true', help='Delete all jobs of the given names. Asterisks can be used as wildcards.')
+    group.add_argument('-u', action='store_true', help='Delete all jobs of the given users. Asterisks can be used as wildcards.')
+    args = arg_parser.parse_args()
+
+    joblist = []
+    # delete by user names
+    if args.u:
+        specifier = 'user'
+        joblist = args.jobs
+    # delete by job names
+    elif args.n:
+        specifier = 'name'
+        joblist = args.jobs
+    # delete by job ids
+    else:
+        specifier = 'id'
+        try:
+            for job in args.jobs:
+                if len(job.split('-')) == 2:
+                    joblist += [ i for i in range(int(job.split('-')[0]), int(job.split('-')[1]) + 1) ]
+                else:
+                    joblist.append(int(job))
+        except:
+            print 'qdel: ' + ' '.join(args.jobs) + ' is not a valid list of job ids.'
+            exit()
+
+    server_address = (args.server_ip, args.server_port)
+    user = 'root' if os.geteuid() == 0 else os.getlogin()
+
+    try:
+        sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+        sock.settimeout(10.0)
+        sock.connect(server_address)
+        # initial request to delete jobs
+        sock.sendall('qdel')
+        # wait for acknowledgement by server
+        sock.recv(1024)
+        for job in joblist:
+            sock.sendall(specifier + ':' + str(job) + ':' + user)
+            reply = sock.recv(1024)
+            while reply != ':' and reply != '':
+                sock.sendall(':') # send acknowledgement to server
+                print reply
+                reply = sock.recv(1024)
+        sock.close()
+    except:
+        print 'qdel: no answer from server'
+
+if __name__ == '__main__':
+    main()

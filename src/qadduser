@@ -1,8 +1,0 @@
-#!/bin/bash
-
-USER_NAME=$1
-PRIORITY_FACTOR=$2
-
-SCHEDULER_DIR="/usr/queue"
-
-${SCHEDULER_DIR}/scheduler adduser $USER_NAME $PRIORITY_FACTOR
