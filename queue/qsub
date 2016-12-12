@@ -46,7 +46,7 @@ def submit_job(script, server_address, block_idx, job_id, subtask_id, depends_on
          + ' --user=' + os.getlogin()
     if len(depends_on) > 0:
         args = args + ' --depends_on=' + ','.join([ str(i) for i in depends_on ])
-    os.system('./job.py' + args + ' ' + script_str + ' &')
+    os.system('job.py' + args + ' ' + script_str + ' &')
 
 
 def select_blocks(script, start_block, only_start_block = False):
