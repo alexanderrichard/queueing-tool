@@ -1,0 +1,101 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          queue
+# Required-Start:    networking
+# Required-Stop:     networking
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start the queue server.
+# Description:
+### END INIT INFO
+
+
+### start qserver automatically at boot:
+### place this file into /etc/init.d, then
+### sudo update-rc.d qserver_daemon defaults
+
+### TODO: adjust these values to your needs
+### QSERVER EXECUTABLE ###
+QSERVER_EXECUTABLE=/home/richard/pyqueue/queue/qserver
+### QSERVER OPTIONS    ###
+DEVICE_IDS="0,1"            # Cuda device ids, set to empty string if no GPUs available
+THREADS=8                   # number of available threads
+MEMORY=30000                # available memory in mb
+ABORT_ON_TIME_LIMIT="true"  # abort jobs if time limit is exceeded?
+PORT=1234                   # port the server listens on
+##########################
+
+
+DAEMON_OPTS="--gpus=$DEVICE_IDS --threads=$THREADS --memory=$MEMORY --port=$PORT"
+if [ "$ABORT_ON_TIME_LIMIT" = "true" ]; then
+    DAEMON_OPTS="$DAEMON_OPTS --abort_on_time_limit"
+fi
+
+
+# Using the lsb functions to perform the operations.
+. /lib/lsb/init-functions
+# Process name ( For display )
+NAME=qserverd
+# Daemon name, where is the actual executable
+DAEMON=$QSERVER_EXECUTABLE
+# pid file for the daemon
+PIDFILE=/var/run/qserverd.pid
+
+
+test -x $DEAMON || exit 1
+
+case "$1" in
+  start)
+    if [ -e $PIDFILE ]; then
+      status_of_proc -p $PIDFILE $DAEMON "$NAME process" && status="0" || status="$?"
+      if [ $status = "0" ]; then
+          exit
+      fi
+    fi
+    # start qserverd
+    log_daemon_msg "Starting the process" "$NAME"
+    if start-stop-daemon --start -b --make-pidfile --quiet --oknodo --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_OPTS ; then
+        log_end_msg 0
+    else
+        log_end_msg 1
+    fi
+    ;;
+  stop)
+    # stop qserverd
+    if [ -e $PIDFILE ]; then
+      status_of_proc -p $PIDFILE $DAEMON "Stopping the $NAME process" && status="0" || status="$?"
+      if [ "$status" = 0 ]; then
+        start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+        /bin/rm -rf $PIDFILE
+      fi
+    else
+      log_daemon_msg "$NAME process is not running"
+      log_end_msg 0
+    fi
+	;;
+  restart)
+    $0 stop && sleep 2 && $0 start
+    ;;
+  status)
+    if [ -e $PIDFILE ]; then
+      status_of_proc -p $PIDFILE $DAEMON "$NAME process" && exit 0 || exit $?
+    else
+      log_daemon_msg "$NAME Process is not running"
+      log_end_msg 0
+    fi
+    ;;
+  reload)
+    if [ -e $PIDFILE ]; then
+      start-stop-daemon --stop --signal USR1 --quiet --pidfile $PIDFILE --name $NAME
+      log_success_msg "$NAME process reloaded successfully"
+    else
+      log_failure_msg "$PIDFILE does not exists"
+    fi
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|reload|status}"
+	exit 2
+	;;
+esac
+
+:
