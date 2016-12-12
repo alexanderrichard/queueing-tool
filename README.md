@@ -116,9 +116,9 @@ Options:
         Execute the script locally
     -b BLOCK, --block BLOCK
         Only submit/execute the specified block
-    -s SUBTASK SUBTASK, --subtask SUBTASK SUBTASK
+    -s BLOCK SUBTASK_ID, --subtask BLOCK SUBTASK_ID
         Arguments for this option are a block name and a
-        subtask id.Only submit/execute the subtask id of the
+        subtask id. Only submit/execute the subtask id of the
         specified block.
     -f FROM_BLOCK, --from_block FROM_BLOCK
         Submit/execute the specified block and all succeeding blocks
