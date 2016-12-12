@@ -80,7 +80,7 @@ def main():
     arg_parser.add_argument('-l','--local', action='store_true', help='Execute the script locally')
     group = arg_parser.add_mutually_exclusive_group()
     group.add_argument('-b','--block', type=str, default='', help='Only submit/execute the specified block')
-    group.add_argument('-s','--subtask', type=str, default='', nargs=2, help='Aruments for this option are a block name and a subtask id.'
+    group.add_argument('-s','--subtask', type=str, default='', nargs=2, help='Arguments for this option are a block name and a subtask id.'
                                                                   'Only submit/execute the subtask id of the specified block.')
     group.add_argument('-f','--from_block', type=str, default='', help='Submit/execute the specified block and all succeeding blocks')
     arg_parser.add_argument('--server_ip', type=str, default='localhost', help='Ip address of the server')

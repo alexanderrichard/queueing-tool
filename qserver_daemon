@@ -12,11 +12,11 @@
 
 ### start qserver automatically at boot:
 ### place this file into /etc/init.d, then
-### sudo update-rc.d qserver_daemon defaults
+### sudo update-rc.d /etc/init.d/qserver_daemon defaults
 
 ### TODO: adjust these values to your needs
 ### QSERVER EXECUTABLE ###
-QSERVER_EXECUTABLE=/home/richard/pyqueue/queue/qserver
+QSERVER_EXECUTABLE=/YOUR_QUEUE_PATH/qserver
 ### QSERVER OPTIONS    ###
 DEVICE_IDS="0,1"            # Cuda device ids, set to empty string if no GPUs available
 THREADS=8                   # number of available threads
@@ -24,6 +24,8 @@ MEMORY=30000                # available memory in mb
 ABORT_ON_TIME_LIMIT="true"  # abort jobs if time limit is exceeded?
 PORT=1234                   # port the server listens on
 ##########################
+
+### LEAVE THE REMAINDER OF THE SCRIPT UNCHANGED ###
 
 
 DAEMON_OPTS="--gpus=$DEVICE_IDS --threads=$THREADS --memory=$MEMORY --port=$PORT"
