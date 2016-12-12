@@ -36,7 +36,7 @@ path will be loaded for all users.
 
 Either start the server automatically as described above or manually:
 
-`qserver [-h] [--port PORT] [--gpus GPUS] [--threads THREADS] [--memory MEMORY] [--abort_on_time_limit]`
+`qserver [--port PORT] [--gpus GPUS] [--threads THREADS] [--memory MEMORY] [--abort_on_time_limit]`
 
 Options:
 
