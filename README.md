@@ -1,6 +1,10 @@
 # queueing-tool
 
-A tool for scheduling multiple parallelized jobs to a machine.
+A tool for scheduling multiple parallelized jobs to a machine. Jobs are scheduled
+according to a priority queue. The priority of a job is small if the amount of
+requested resources/computation time is large and high if the amount of requested
+resources/computation time is small, respectively. Priority of a job increases with
+its waiting time.
 
 ################################################################################
 # (A) INSTALLATION                                                             #
