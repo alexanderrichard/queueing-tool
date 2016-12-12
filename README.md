@@ -25,12 +25,13 @@ marked with *TODO*. You can now also start/stop the qserver with
     /etc/init.d/qserver_daemon start/stop
 
 The queue-commands are located the *queue* directory.
-For direct access, it is recommended to add the following line to your .bashrc:
+In order to submit jobs, it is required that the following line is added either
+to your *.bashrc* (will make the queue tools accessible for your account) or to
+an empty file in */etc/profiles.d/* (will make the queue tools accessible for all
+accounts):
 
     export PATH=/your/queue/path/queue:$PATH
 
-You might as well put a .sh file containing this line in /etc/profiles.d, so the
-path will be loaded for all users.
 
 ################################################################################
 # (B) USAGE                                                                    #
