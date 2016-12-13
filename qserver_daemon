@@ -12,7 +12,7 @@
 
 ### start qserver automatically at boot:
 ### place this file into /etc/init.d, then
-### sudo update-rc.d /etc/init.d/qserver_daemon defaults
+### sudo update-rc.d qserver_daemon defaults
 
 ### TODO: adjust these values to your needs
 ### QSERVER EXECUTABLE ###
