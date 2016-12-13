@@ -16,7 +16,7 @@ requested resources. The server can either be started manually or automatically
 as a daemon. For the latter case, copy the *qserver_daemon* script to */etc/init.d/*
 and invoke
 
-    sudo update-rc.d /etc/init.d/qserver_daemon defaults
+    sudo update-rc.d qserver_daemon defaults
 
 to register it for startup during boot. Note that the path to the queue directory
 and the available resources need to be specified in *qserver_daemon* at the point
