@@ -35,6 +35,8 @@ def main():
             reply = sock.recv(1024)
             if not reply == 'done':
                 print reply
+            if reply == '': # empty reply -> server closed socket -> done
+                reply = 'done'
         sock.close()
         # print footer
         if not args.verbose:
