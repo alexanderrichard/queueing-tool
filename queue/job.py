@@ -145,7 +145,7 @@ class Executable_Job(Job):
             + ' > /dev/tcp/' + self.server_address[0] + '/' + str(self.server_address[1]) + '"'
         # run job without waiting
         proc = subprocess.Popen(args=cmd, stdout=self.qlog, stderr=self.qlog, shell=True, preexec_fn=os.setsid)
-        timer = threading.Timer(self.requests['hours'] * 3600, self.timeout, args=[proc.pid])
+        timer = threading.Timer(self.requests['hours'] * 3600, self.timeout)
         timer.start()
         self.wait_for_message(proc.pid)
         timer.cancel()
