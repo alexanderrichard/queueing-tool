@@ -41,7 +41,7 @@ def main():
             exit()
 
     server_address = (args.server_ip, args.server_port)
-    user = 'root' if os.geteuid() == 0 else os.getlogin()
+    user = 'root' if os.geteuid() == 0 else os.getenv('USER')
 
     try:
         sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
