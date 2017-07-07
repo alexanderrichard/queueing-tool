@@ -48,6 +48,7 @@ class Server(object):
     def __init__(self, port, gpus, threads, memory, abort_on_time_limit):
         # socket
         self.listener = socket.socket( socket.AF_INET,  socket.SOCK_STREAM )
+        self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listener.bind( ('localhost', port) )
         # resources
         self.gpus = gpus
