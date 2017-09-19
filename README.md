@@ -10,6 +10,14 @@ its waiting time.
 # (A) INSTALLATION                                                             #
 ################################################################################
 
+Open the file *qserver_deamon* and set the available resources
+*DEVICE_IDS*, *THREADS*, and *MEMORY* to values that fit for your machine.
+Then, install the tool.
+
+(a) Automatic installation: run the script *install.sh* as root.
+
+(b) Manual installation:
+
 Copy the *queue* directory to a location of your choice. The queueing tool requires
 to run the *qserver* tool that manages all submitted jobs and allocates the
 requested resources. The server can either be started manually or automatically
@@ -96,6 +104,10 @@ to the default values.
 In order to submit the above script, save it as `your-queue-script.sh` and invoke
 
      qsub your-queue-script.sh [param1] [param2] [...]
+
+Note that the tool will create a `q.log` folder in the directory you invoked `qsub` in.
+In this folder, a file for each job is created, storing some meta information about the
+job as well as everything written to stdout and stderr.
 
 # (2) job status ###############################################################
 
