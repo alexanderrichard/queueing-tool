@@ -85,6 +85,13 @@ class Server(object):
         for idx, job in enumerate(joblist):
             job.priority = float(waiting_times[idx]) / acc_waiting_time
             job.priority /= max(float(job.n_gpus) / n_gpus, float(job.threads) / threads, float(job.memory) / memory) + float(job.hours) / hours
+        ## if a user already has a running job, decrease his priority
+        for job in joblist:
+            user_job_fraction = 0.0
+            if len(self.running_jobs) > 0:
+                user_job_fraction = len([ 0 for j in self.running_jobs if self.jobs[j].user == job.user ]) / float(len(self.running_jobs))
+            running_jobs_penalty = max(0.001, 1.0 - user_job_fraction)
+            job.priority *= running_jobs_penalty
         # normalize such that max priority is one
         max_priority = max( [ job.priority for job in joblist ] )
         for job in joblist:
@@ -272,12 +279,15 @@ class Server(object):
     def run(self):
         self.listener.listen(1)
         while True:
-            try:
-                connection, client_address = self.listener.accept()
-                self.handle_connection(connection)
-                connection.close()
-            except:
-                pass
+            connection, client_address = self.listener.accept()
+            self.handle_connection(connection)
+            connection.close()
+            #try:
+            #    connection, client_address = self.listener.accept()
+            #    self.handle_connection(connection)
+            #    connection.close()
+            #except:
+            #    pass
 
 
 def main():
