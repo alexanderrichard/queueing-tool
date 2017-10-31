@@ -116,6 +116,7 @@ class Server(object):
             self.start_job(job_id)
             self.waiting_jobs.remove(job_id)
             self.running_jobs.append(job_id)
+            self.update_priorities()
             scheduler.update_resources(len(self.free_gpus), self.free_threads, self.free_memory)
             job_id = scheduler.schedule(self.jobs, self.waiting_jobs, self.running_jobs)
 
@@ -279,15 +280,12 @@ class Server(object):
     def run(self):
         self.listener.listen(1)
         while True:
-            connection, client_address = self.listener.accept()
-            self.handle_connection(connection)
-            connection.close()
-            #try:
-            #    connection, client_address = self.listener.accept()
-            #    self.handle_connection(connection)
-            #    connection.close()
-            #except:
-            #    pass
+            try:
+                connection, client_address = self.listener.accept()
+                self.handle_connection(connection)
+                connection.close()
+            except:
+                pass
 
 
 def main():
