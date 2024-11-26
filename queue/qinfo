@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import socket
 import argparse
@@ -17,12 +17,13 @@ def main():
         sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
         sock.settimeout(10.0)
         sock.connect(server_address)
-        sock.sendall('qinfo')
-        reply = sock.recv(1024)
+        sock.sendall('qinfo'.encode())
+        reply = sock.recv(1024).decode()
         sock.close()
-        print reply
-    except:
-        print 'qinfo: no answer from server'
+        print(reply)
+    except Exception as e:
+
+        print('qinfo: no answer from server')
 
 if __name__ == '__main__':
     main()

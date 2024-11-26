@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import datetime
 
@@ -37,7 +37,7 @@ class Scheduler(object):
     def waiting_time(self, job, running_jobs):
         # sort jobs by remaining runtime (in seconds)
         runtimes = [ max(1, j.hours * 3600 - j.time) for j in running_jobs ]
-        runtimes, sorted_jobs = zip(*sorted(zip(runtimes, running_jobs)))
+        runtimes, sorted_jobs = list(zip(*sorted(zip(runtimes, running_jobs))))
         # determine waiting time until job can be submitted
         tmp_resources = self.free_resources
         for idx in range(len(sorted_jobs)):
@@ -52,7 +52,7 @@ class Scheduler(object):
             # sort waiting jobs by priority (first key) and job_id (second key in case of equal priority)
             priorities = [ job.priority for job in waiting_jobs ]
             job_ids = [ job.job_id for job in waiting_jobs ]
-            priorities, job_ids, waiting_jobs = zip(*sorted(zip(priorities, job_ids, waiting_jobs), key=lambda sl: (-sl[0], sl[1])))
+            priorities, job_ids, waiting_jobs = list(zip(*sorted(zip(priorities, job_ids, waiting_jobs), key=lambda sl: (-sl[0], sl[1]))))
             # determine next job to schedule
             if waiting_jobs[0].fits(self.free_resources):
                 return waiting_jobs[0].job_id

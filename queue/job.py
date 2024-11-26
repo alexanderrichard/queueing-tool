@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import subprocess
 import threading
@@ -41,6 +41,7 @@ class Executable_Job(Job):
 
     def __init__(self, requests, job_id, subtask_id, depends_on, user, server_address):
         super( Executable_Job, self ).__init__(requests, job_id, subtask_id, depends_on, user)
+        self.tmp_script_file = None
         self.is_running = False
         # set up a socket and store address
         self.listener = socket.socket( socket.AF_INET,  socket.SOCK_STREAM )
@@ -54,7 +55,7 @@ class Executable_Job(Job):
 
     def write_log(self, msg):
         if self.qlog == None:
-            print msg
+            print(msg)
         else:
             self.qlog.write(msg + '\n')
             self.qlog.flush()
@@ -85,7 +86,7 @@ class Executable_Job(Job):
         msg = 'timeout:' + str(self.job_id)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(self.server_address)
-        sock.sendall(msg)
+        sock.sendall(msg.encode())
         sock.close()
 
 
@@ -155,9 +156,11 @@ class Executable_Job(Job):
     def wait_for_message(self, pid):
         while True:
             connection, from_address = self.listener.accept()
-            received = connection.recv(1024)
+            received = connection.recv(1024).decode()
+
             if (received == 'delete') or (received == 'timeout'):
                 if self.is_running:
+
                     self.write_log('\nJOB KILLED: %s\n' % received)
                     os.killpg(os.getpgid(pid), signal.SIGKILL)
                     return
@@ -184,17 +187,17 @@ class Executable_Job(Job):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10.0)
             sock.connect(self.server_address)
-            sock.sendall(msg)
+            sock.sendall(msg.encode())
             # wait for answer
-            reply = sock.recv(1024)
+            reply = sock.recv(1024).decode()
             sock.close()
         except:
-            print 'register job: no answer from server'
+            print('register job: no answer from server')
             exit()
         # if declined print decline message and exit
         if not reply == 'accept':
-            print 'JOB DECLINED.'
-            print reply
+            print('JOB DECLINED.')
+            print(reply)
             exit()
 
 

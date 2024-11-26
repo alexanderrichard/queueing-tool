@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import socket
 import time
@@ -6,7 +6,6 @@ import datetime
 import argparse
 import re
 from scheduler import Scheduler
-
 
 class Job(object):
 
@@ -120,18 +119,19 @@ class Server(object):
             scheduler.update_resources(len(self.free_gpus), self.free_threads, self.free_memory)
             job_id = scheduler.schedule(self.jobs, self.waiting_jobs, self.running_jobs)
 
-
     def send_msg(self, msg, address):
-        try: # if client can not be reached assume it crashed
-            sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM ) 
+        try:  # if client can not be reached assume it crashed 
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
             sock.connect(address)
-            sock.sendall(msg)
+            sock.sendall(msg.encode())
             sock.close()
-        except:
+
+        except Exception as e:
             pass
 
-
     def delete_job(self, job_id, reschedule = True):
+
         # remove job_id from dependencies
         held = list(set(self.held_jobs) - set([job_id]))
         for j in held:
@@ -139,20 +139,26 @@ class Server(object):
                 self.jobs[j].depends_on.remove(job_id)
                 # if no dependencies left, held jobs switches to waiting
                 if len(self.jobs[j].depends_on) == 0:
+
                     self.held_jobs.remove(j)
                     self.waiting_jobs.append(j)
                     self.jobs[j].time = datetime.datetime.now() # waiting time starts now
                     self.update_priorities()
+
+    
         # remove job from job container
         job = self.jobs.pop(job_id, None)
+
         ### delete a held or waiting job ###
         if job_id in self.waiting_jobs:
+
             self.waiting_jobs.remove(job_id)
             self.update_priorities()
         elif job_id in self.held_jobs:
+
             self.held_jobs.remove(job_id)
-        ### delete a running job ###
         elif job_id in self.running_jobs:
+
             # free resources
             self.free_gpus = self.free_gpus + job.gpus
             self.free_memory = self.free_memory + job.memory
@@ -195,30 +201,36 @@ class Server(object):
             + 'threads: ' + str(self.threads - self.free_threads) + '/' + str(self.threads) + '\n' \
             + 'memory:  ' + str(self.memory - self.free_memory) + '/' + str(self.memory) + '\n' \
             + 'gpus:    ' + str(len(self.gpus) - len(self.free_gpus)) + '/' + str(len(self.gpus))
-        connection.sendall(msg)
+        connection.sendall(msg.encode())
 
 
     def qstat(self, connection, verbose = False):
         for job_id in sorted(self.running_jobs):
-            connection.sendall(self.jobs[job_id].to_string(job_id, 'r', verbose))
-            connection.recv(1024) # wait for feedback
+            connection.sendall((self.jobs[job_id].to_string(job_id, 'r', verbose)).encode())
+            connection.recv(1024).decode() # wait for feedback
         for job_id in sorted(self.waiting_jobs):
-            connection.sendall(self.jobs[job_id].to_string(job_id, 'w', verbose))
-            connection.recv(1024) # wait for feedback
+            connection.sendall((self.jobs[job_id].to_string(job_id, 'w', verbose)).encode())
+            connection.recv(1024).decode() # wait for feedback
         for job_id in sorted(self.held_jobs):
-            connection.sendall(self.jobs[job_id].to_string(job_id, 'h', verbose))
-            connection.recv(1024) # wait for feedback
-
+            connection.sendall((self.jobs[job_id].to_string(job_id, 'h', verbose)).encode())
+            connection.recv(1024).decode() # wait for feedback
 
     def qdel(self, connection):
         try:
-            connection.sendall(':') # notification for client
+            message = ':'
+
+            connection.sendall(message.encode())
+
             while True:
-                msg = connection.recv(1024)
+                msg = connection.recv(1024).decode()
+
                 assert msg != ''
+                
                 specifier = msg.split(':')[0]
                 to_delete = re.sub('\*', '.*', msg.split(':')[1])
                 user = msg.split(':')[2]
+
+                
                 joblist = []
                 # find relevant jobs
                 for job_id in self.jobs:
@@ -230,52 +242,72 @@ class Server(object):
                         joblist.append(job_id)
                 # delete jobs
                 if len(joblist) == 0:
-                    connection.sendall('no job with ' + specifier + ' ' + to_delete + ' found')
-                    connection.recv(1024) # wait for acknowledgement by client
+
+                    message = f'no job with {specifier} {to_delete} found'
+                    connection.sendall(message.encode())
+                    connection.recv(1024).decode()  # wait for acknowledgement by client
+                
                 for job_id in sorted(joblist):
                     if (user == 'root') or (user == self.jobs[job_id].user):
-                        connection.sendall('delete job ' + str(job_id) + ' (' + self.jobs[job_id].name + ')')
-                        connection.recv(1024) # wait for acknowledgement by client
+
+                        message = f'delete job {job_id} ({self.jobs[job_id].name})'
+                        connection.sendall(message.encode())
+                        connection.recv(1024).decode() # wait for acknowledgement by client
+
                         self.send_msg('delete', self.jobs[job_id].address)
                         self.delete_job(job_id, False)
                     else:
-                        connection.sendall('delete job ' + job_id + ' (' + self.jobs[job_id].name + '): permission denied')
-                        connection.recv(1024) # wait for acknowledgement by client
-                connection.sendall(':') # notify client that all matching jobs are deleted
-        except:
+
+                        message = f'delete job {job_id} ({self.jobs[job_id].name}): permission denied'
+                        connection.sendall(message.encode())
+                        connection.recv(1024).decode()  # wait for acknowledgement by client
+                
+                message = ':'
+                connection.sendall(message.encode())
+
+        except Exception as e:
+
             self.schedule()
-
-
+            
     def handle_connection(self, connection):
         try:
             # receive data
-            msg = connection.recv(1024)
+            msg = connection.recv(1024).decode()
+
+            
             # handle data
             if (msg[0:7] == 'timeout') and (self.abort_on_time_limit): # timeout
+
                 job_id = int(msg[8:])
                 self.send_msg('timeout', self.jobs[job_id].address)
                 self.delete_job(job_id)
             elif msg[0:7] == 'request': # request
+
                 reply = self.add_job(msg[8:])
-                connection.sendall(reply)
+                connection.sendall(reply.encode())
             elif msg[0:8] == 'finished': # job finished
+
                 job_id = int(msg[9:])
                 if job_id in self.jobs:
                     self.send_msg('finished', self.jobs[job_id].address)
                     self.delete_job(job_id)
             elif msg == 'get_id': # request job id
-                connection.sendall(str(self.next_job_id))
+
+                connection.sendall(str(self.next_job_id).encode())
                 self.next_job_id = max(1, (self.next_job_id + 1) % 10000000)
             elif msg == 'qdel': # delete job
+
                 self.qdel(connection)
             elif msg[0:5] == 'qstat': # print queue
+
                 verbose = True if msg.split(':')[1] == 'verbose' else False
                 self.qstat(connection, verbose)
             elif msg == 'qinfo': # print resource information
-                self.qinfo(connection)
-        except:
-            return
 
+                self.qinfo(connection)
+        except Exception as e:
+
+            return
 
     def run(self):
         self.listener.listen(1)
@@ -306,3 +338,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+

@@ -1,9 +1,8 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import argparse
 import os
 import subprocess
-import signal
 import socket
 from block_parser import Block_Parser
 
@@ -27,11 +26,12 @@ def request_id(server_address):
         sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
         sock.settimeout(10.0)
         sock.connect(server_address)
-        sock.sendall('get_id')
-        job_id = int( sock.recv(1024) )
+        sock.sendall('get_id'.encode()) 
+        job_id = int( sock.recv(1024).decode()) 
         sock.close()
-    except:
-        print 'request id: no answer from server'
+    except Exception as e:
+        
+        print('request id: no answer from server')
         exit()
     return job_id
 
@@ -61,13 +61,13 @@ def select_blocks(script, start_block, only_start_block = False):
             else:
                 start_idx = start_idx + 1
     if start_idx >= len(blocks):
-        print 'block name ' + start_block + ' does not exist. Do not submit jobs.'
+        print('block name ' + start_block + ' does not exist. Do not submit jobs.')
         exit()
     # return the relevant blocks
     if only_start_block:
-        return blocks, range(start_idx, start_idx+1)
+        return blocks, list(range(start_idx, start_idx+1))
     else:
-        return blocks, range(start_idx ,len(blocks))
+        return blocks, list(range(start_idx ,len(blocks)))
 
 
 def main():
@@ -98,8 +98,9 @@ def main():
             subtask_id = int(args.subtask[1])
             assert subtask_id <= blocks[block_indices[0]].values['subtasks']
             assert subtask_id > 0
-        except:
-            print 'block ' + args.subtask[0] + ': subtask id must be in the range 1,...,' + str(blocks[block_indices[0]].values['subtasks']) + ' but is ' + args.subtask[1]
+        except Exception as e:
+            print(f"Debug: qsub: Exception occurred: {str(e)}")
+            print('block ' + args.subtask[0] + ': subtask id must be in the range 1,...,' + str(blocks[block_indices[0]].values['subtasks']) + ' but is ' + args.subtask[1])
             exit()
     elif not args.from_block == '':
         blocks, block_indices = select_blocks(args.script[0], args.from_block, False)
@@ -109,7 +110,7 @@ def main():
     if args.local:
         # local execution
         for block_idx in block_indices:
-            subtask_ids = range(blocks[block_idx].values['subtasks']) if args.subtask == '' else [int(args.subtask[1])-1]
+            subtask_ids = list(range(blocks[block_idx].values['subtasks'])) if args.subtask == '' else [int(args.subtask[1])-1]
             for subtask_id in subtask_ids:
                 run_locally(blocks[block_idx], args.script[1:], subtask_id)
     else:
@@ -117,7 +118,7 @@ def main():
         depends_on = []
         for block_idx in block_indices:
             block_job_ids = []
-            subtask_ids = range(blocks[block_idx].values['subtasks']) if args.subtask == '' else [int(args.subtask[1])-1]
+            subtask_ids = list(range(blocks[block_idx].values['subtasks'])) if args.subtask == '' else [int(args.subtask[1])-1]
             for subtask_id in subtask_ids:
                 job_id = request_id(server_address)
                 block_job_ids.append(job_id)
@@ -126,3 +127,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
