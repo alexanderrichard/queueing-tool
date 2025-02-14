@@ -4,6 +4,7 @@ import argparse
 import os
 import subprocess
 import socket
+import pathlib as pl
 from block_parser import Block_Parser
 
 
@@ -88,12 +89,13 @@ def main():
     args = arg_parser.parse_args()
 
     server_address = (args.server_ip, args.server_port)
+    file = pl.Path(args.script[0])
 
     # determine blocks to execute
     if not args.block == '':
-        blocks, block_indices = select_blocks(args.script[0], args.block, True)
+        blocks, block_indices = select_blocks(file, args.block, True)
     elif not args.subtask == '':
-        blocks, block_indices = select_blocks(args.script[0], args.subtask[0], True)
+        blocks, block_indices = select_blocks(file, args.subtask[0], True)
         try:
             subtask_id = int(args.subtask[1])
             assert subtask_id <= blocks[block_indices[0]].values['subtasks']
@@ -103,9 +105,9 @@ def main():
             print('block ' + args.subtask[0] + ': subtask id must be in the range 1,...,' + str(blocks[block_indices[0]].values['subtasks']) + ' but is ' + args.subtask[1])
             exit()
     elif not args.from_block == '':
-        blocks, block_indices = select_blocks(args.script[0], args.from_block, False)
+        blocks, block_indices = select_blocks(file, args.from_block, False)
     else:
-        blocks, block_indices = select_blocks(args.script[0], '', False)
+        blocks, block_indices = select_blocks(file, '', False)
 
     if args.local:
         # local execution
