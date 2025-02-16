@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import socket
 import os
@@ -37,30 +37,47 @@ def main():
                 else:
                     joblist.append(int(job))
         except:
-            print 'qdel: ' + ' '.join(args.jobs) + ' is not a valid list of job ids.'
+            print('qdel: ' + ' '.join(args.jobs) + ' is not a valid list of job ids.')
             exit()
+
+
+
 
     server_address = (args.server_ip, args.server_port)
     user = 'root' if os.geteuid() == 0 else os.getenv('USER')
+
+
 
     try:
         sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
         sock.settimeout(10.0)
         sock.connect(server_address)
+
+        
         # initial request to delete jobs
-        sock.sendall('qdel')
-        # wait for acknowledgement by server
-        sock.recv(1024)
+        sock.sendall('qdel'.encode())
+        initial_reply = sock.recv(1024).decode()
+
+        
         for job in joblist:
-            sock.sendall(specifier + ':' + str(job) + ':' + user)
-            reply = sock.recv(1024)
+            message = f"{specifier}:{str(job)}:{user}"
+
+            sock.sendall(message.encode())
+            reply = sock.recv(1024).decode()
+
+            
             while reply != ':' and reply != '':
-                sock.sendall(':') # send acknowledgement to server
-                print reply
-                reply = sock.recv(1024)
+                sock.sendall(':'.encode()) # send acknowledgement to server
+
+                print(reply)
+                reply = sock.recv(1024).decode()
+
+        
         sock.close()
-    except:
-        print 'qdel: no answer from server'
+
+    except Exception as e:
+
+        print('qdel: no answer from server')
 
 if __name__ == '__main__':
     main()

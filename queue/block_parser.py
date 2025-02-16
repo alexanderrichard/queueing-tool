@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import re
 
@@ -23,11 +23,11 @@ class Block(object):
             self.values['hours'] = max(1, int(self.values['hours']))
             self.values['subtasks'] = max(1, int(self.values['subtasks']))
         except:
-            print 'Parser: Invalid block definition. Abort.'
+            print('Parser: Invalid block definition. Abort.')
             exit()
 
     def exists(self, key):
-        return key in self.values.keys()
+        return key in list(self.values.keys())
 
     def set_value(self, key, value):
         self.values[str(key)] = value
@@ -47,7 +47,7 @@ class Block_Parser(object):
         block[0] = re.sub('gpu=true', 'gpus=1', block[0])
         block[0] = re.sub('gpu=false', 'gpus=0', block[0])
         # extract job parameters
-        meta = re.sub('\).*', '', re.sub('.*\(', '', block[0])).split(',')
+        meta = re.sub(r'\).*', '', re.sub(r'.*\(', '', block[0])).split(',')
         parsed_block = Block()
         for param in meta:
             if len(param.split('=')) == 2:
@@ -67,7 +67,7 @@ class Block_Parser(object):
             content = f.read().split('\n')
             f.close()
         except:
-            print 'Parser: script %s could not be opened.' % script
+            print('Parser: script %s could not be opened.' % script)
             exit()
         # extract blocks from script
         block_starts = []
@@ -80,7 +80,7 @@ class Block_Parser(object):
             blocks.append( content[block_starts[i]:block_starts[i+1]] )
         # at least one block has to exist
         if len(blocks) == 0:
-            print 'Error: No block defined in %s' % script
+            print('Error: No block defined in %s' % script)
             exit()
         # parse each single block
         parsed_blocks = []

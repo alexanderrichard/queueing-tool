@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 
 import socket
 import argparse
@@ -19,30 +19,30 @@ def main():
         sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
         sock.settimeout(10.0)
         sock.connect(server_address)
-        sock.sendall('qstat:' + verbose)
+        sock.sendall(('qstat:' + verbose).encode())
         # print header
         if not args.verbose:
-            print '+----------------------------------------------------------------------------+'
-            print '|id               jobname    submit/start time  status         user  priority|'
-            print '+----------------------------------------------------------------------------+'
+            print('+----------------------------------------------------------------------------+')
+            print('|id               jobname    submit/start time  status         user  priority|')
+            print('+----------------------------------------------------------------------------+')
         else:
-            print '+-----------------------------------------------------------------------------------------------------------------+'
-            print '|id               jobname    submit/start time  status         user  priority  threads    memory  time limit  gpus|'
-            print '+-----------------------------------------------------------------------------------------------------------------+'
+            print('+-----------------------------------------------------------------------------------------------------------------+')
+            print('|id               jobname    submit/start time  status         user  priority  threads    memory  time limit  gpus|')
+            print('+-----------------------------------------------------------------------------------------------------------------+')
         # print jobs
-        reply = sock.recv(1024)
+        reply = sock.recv(1024).decode()
         while not reply == '':
-            print reply
-            sock.sendall('ack') # send acknowledgement
-            reply = sock.recv(1024)
+            print(reply)
+            sock.sendall('ack'.encode()) # send acknowledgement
+            reply = sock.recv(1024).decode()
         sock.close()
         # print footer
         if not args.verbose:
-            print '+----------------------------------------------------------------------------+'
+            print('+----------------------------------------------------------------------------+')
         else:
-            print '+-----------------------------------------------------------------------------------------------------------------+'
+            print('+-----------------------------------------------------------------------------------------------------------------+')
     except:
-        print 'qstat: no answer from server'
+        print('qstat: no answer from server')
 
 
 if __name__ == '__main__':
