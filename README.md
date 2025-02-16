@@ -40,9 +40,37 @@ accounts):
 
     export PATH=/your/queue/path/queue:$PATH
 
+################################################################################
+# (B) QUICKSTART                                                               #
+################################################################################
+
+Save the following as `test.sh`:
+
+```bash
+    # Simple script that counts up numbers forever:
+    #block(name=test-job, threads=1, memory=1000, hours=24)
+      counter=0
+      while true; do
+        echo "Job running: counter=$counter"
+        counter=$((counter + 1))
+        sleep 1
+      done
+```
+
+Submit the script: 
+```bash
+qsub test.sh
+```
+Check the job status in the queue with `qstat`.  
+Once the job starts, output logs are available in the folder `q.log/test-job.<JOB_ID>`.   
+You can kill the job with `qdel <JOB_ID>`.
+To stop the job, use:
+```bash
+qdel <JOB_ID>
+```
 
 ################################################################################
-# (B) USAGE                                                                    #
+# (C) USAGE                                                                    #
 ################################################################################
 
 # (1) qserver ##################################################################
@@ -84,7 +112,7 @@ If more than one block is specified in one script, each block is considered to
 be dependent on it predecessor, i.e. it is not started before all subtasks of
 the preceding block have finished. Subtasks within a block can run in parallel.
 
-Example:
+Example: 
 --------------------------------------------------------------------------------
     #block(name=block-1, threads=2, memory=2000, subtasks=10, hours=24)
       echo "process subtask $SUBTASK_ID of $N_SUBTASKS"
