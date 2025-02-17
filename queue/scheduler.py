@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import datetime, random, re
-
+from typing import List, Dict, Tuple
 
 class GPUTreeNode(object):
     def __init__(self, cuda_id=None, left=None, right=None):
@@ -107,7 +107,7 @@ class GPUTree(object):
         self._head = roots.pop(0)
 
     def reserveGPUs(self, amount):
-        total_cpus, total_used, left_used, right_used = self._head.total()  # used means at least partly used, doesn't mean its fully used.
+        total_gpus, total_used, left_used, right_used = self._head.total()  # used means at least partly used, doesn't mean its fully used.
         direction = True
         direction_needed = (left_used > 0) ^ (right_used > 0)
         if direction_needed:
@@ -156,16 +156,17 @@ class Resources(object):
 
 class Job(object):
 
-    def __init__(self, address, n_gpus, threads, memory, hours, name, user, depends_on):
+    def __init__(self, job_id: int, address, n_gpus: int, threads: int, memory: int, hours: int, name: str, user: str, depends_on: List[int]):
+        self.job_id = job_id
         self.resources = Resources(n_gpus, threads, memory)
         self.address = address
-        self.gpus = []
-        self.hours = hours
-        self.name = name
-        self.user = user
-        self.depends_on = depends_on
-        self.time = datetime.datetime.now()
+        self.gpus: List[GPUTreeNode] = []
+        self.hours: int = hours
+        self.name: str = name
+        self.user: str = user
+        self.depends_on: List[int] = depends_on
         self.priority = 0.0
+        self.reset_elapsed_time()
 
     def to_string(self, job_id: int, status: str, verbose=False):
         s = '|' + str(job_id).zfill(7)
@@ -186,34 +187,31 @@ class Job(object):
         s += '|'
         return s
 
-
-class SchedulerJob(object):
-
-    def __init__(self, job: Job, job_id: int):  # job is a Job object from the server
-        self.resources = job.resources
-        self.hours = job.hours  # estimated duration of the job
-        self.elapsed_time = max(1.0, (datetime.datetime.now() - job.time).total_seconds())  # waiting time/running time of the job
-        self.priority = job.priority
-        self.job_id = job_id
-
     def fits(self, resources):
         return self.resources <= resources
+
+    def reset_elapsed_time(self):
+        self.time = datetime.datetime.now()
+
+    @property
+    def elapsed_time(self):
+        return max(1.0, (datetime.datetime.now() - self.time).total_seconds())  # waiting time/running time of the job
 
 
 class Scheduler(object):
 
-    def __init__(self, gpus, threads, memory, abort_on_time_limit):
+    def __init__(self, gpus: List[Tuple[int, bool]], threads: int, memory: int, abort_on_time_limit: bool):
         # dict mapping job_ids to jobs
-        self.jobs = dict()
-        self.running_jobs = []
-        self.waiting_jobs = []
-        self.held_jobs = []
+        self.jobs: Dict[int, Job] = dict()
+        self.running_jobs: List[int] = []
+        self.waiting_jobs: List[int] = []
+        self.held_jobs: List[int] = []
         # resources
         self.gpu_tree = GPUTree()
         self.gpu_tree.build_tree(gpus)
-        self.resources = Resources(len(gpus), threads, memory)
+        self.resources = Resources(self.gpu_tree.total(), threads, memory)
         # free resources
-        self.free_resources = Resources(len(gpus), threads, memory)
+        self.free_resources = Resources(self.gpu_tree.total(), threads, memory)
         self.abort_on_time_limit = abort_on_time_limit
         self.on_job_start_callback = lambda a: a
 
@@ -251,7 +249,7 @@ class Scheduler(object):
         for job in joblist:
             job.priority = job.priority / max_priority
 
-    def waiting_time(self, job, running_jobs):
+    def waiting_time(self, job: Job, running_jobs: List[Job]):
         # sort jobs by remaining runtime (in seconds)
         runtimes = [max(1, j.hours * 3600 - j.elapsed_time) for j in running_jobs]
         runtimes, sorted_jobs = list(zip(*sorted(zip(runtimes, running_jobs))))
@@ -263,9 +261,9 @@ class Scheduler(object):
                 return runtimes[idx]
         return 0
 
-    def get_next_job(self, jobs, waiting_ids, running_ids):
+    def get_next_job(self, jobs: Dict[int, Job], waiting_ids: List[int], running_ids: List[int]):
         try:
-            waiting_jobs = [SchedulerJob(jobs[job_id], job_id) for job_id in waiting_ids]
+            waiting_jobs = [jobs[job_id] for job_id in waiting_ids]
             if waiting_jobs:
                 # sort waiting jobs by priority (first key) and job_id (second key in case of equal priority)
                 priorities = [job.priority for job in waiting_jobs]
@@ -277,7 +275,7 @@ class Scheduler(object):
                     return waiting_jobs[0].job_id
                 else:
                     # if job does not fit compute waiting time and possibly submit another job that runs in the meantime
-                    running_jobs = [SchedulerJob(jobs[job_id], job_id) for job_id in running_ids]
+                    running_jobs = [jobs[job_id] for job_id in running_ids]
                     time_slot = self.waiting_time(waiting_jobs[0], running_jobs)
                     for job in waiting_jobs[1:]:
                         if job.fits(self.free_resources) and job.hours * 3600 <= time_slot:
@@ -285,9 +283,9 @@ class Scheduler(object):
         except Exception as e:
             return None
 
-    def start_job(self, job_id):
+    def start_job(self, job_id: int):
         # start_jobs assume that job fits into free resources
-        self.jobs[job_id].time = datetime.datetime.now()  # running time starts now
+        self.jobs[job_id].reset_elapsed_time()  # running time starts now
         self.free_resources.threads -= self.jobs[job_id].resources.threads
         self.free_resources.memory -= self.jobs[job_id].resources.memory
         self.jobs[job_id].gpus = self.gpu_tree.reserveGPUs(self.jobs[job_id].resources.n_gpus)
@@ -304,10 +302,10 @@ class Scheduler(object):
             #self.update_resources(self.free_resources)
             job_id = self.get_next_job(self.jobs, self.waiting_jobs, self.running_jobs)
 
-    def delete_job(self, job_id, reschedule=True):
+    def delete_job(self, job_id: int, reschedule=True):
 
         # remove job_id from dependencies
-        held = list(set(self.held_jobs) - set([job_id]))
+        held = list(set(self.held_jobs) - {job_id})
         for j in held:
             if job_id in self.jobs[j].depends_on:
                 self.jobs[j].depends_on.remove(job_id)
@@ -315,7 +313,7 @@ class Scheduler(object):
                 if len(self.jobs[j].depends_on) == 0:
                     self.held_jobs.remove(j)
                     self.waiting_jobs.append(j)
-                    self.jobs[j].time = datetime.datetime.now()  # waiting time starts now
+                    self.jobs[j].reset_elapsed_time()  # waiting time starts now
                     self.update_priorities()
 
         # remove job from job container
@@ -341,10 +339,9 @@ class Scheduler(object):
 
     def submit_job(self, job_id: int, job: Job):
         # check if job can be executed with the given resources
-        if (job.resources.memory > self.resources.memory) or (job.resources.threads > self.resources.threads) or (
-                job.resources.n_gpus > self.gpu_tree.total()):
-            accept = False
-        else:  # put job into queue
+        fits_resources = job.fits(self.resources)
+        if fits_resources:  # put job into queue
+            job.reset_elapsed_time()
             self.jobs[job_id] = job
             if len(job.depends_on) == 0:
                 self.waiting_jobs.append(job_id)
@@ -352,16 +349,15 @@ class Scheduler(object):
                 self.schedule()
             else:
                 self.held_jobs.append(job_id)
-            accept = True
-        return accept
+        return fits_resources
 
-    def find_jobs(self, specifier, to_delete):
+    def find_jobs(self, specifier: str, to_delete: str):
         joblist = []
         # find relevant jobs
         for job_id in self.jobs:
-            if (specifier == 'name') and (re.match(to_delete, self.jobs[job_id].name) != None):
+            if (specifier == 'name') and (re.match(to_delete, self.jobs[job_id].name) is not None):
                 joblist.append(job_id)
-            elif (specifier == 'user') and (re.match(to_delete, self.jobs[job_id].user) != None):
+            elif (specifier == 'user') and (re.match(to_delete, self.jobs[job_id].user) is not None):
                 joblist.append(job_id)
             elif (specifier == 'id') and (job_id == int(to_delete)):
                 joblist.append(job_id)

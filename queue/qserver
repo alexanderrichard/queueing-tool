@@ -1,16 +1,13 @@
 #!/usr/bin/python3
 
-import socket
-import time
-import datetime
-import argparse
-import re
+import socket, argparse, re
 from scheduler import Scheduler, Job
+from typing import List, Tuple
 
 
 class Server(object):
 
-    def __init__(self, port, gpus, threads, memory, abort_on_time_limit):
+    def __init__(self, port: int, gpus: List[Tuple[int, bool]], threads: int, memory: int, abort_on_time_limit: bool):
         # socket
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -24,7 +21,7 @@ class Server(object):
         msg = 'run:' + ','.join([str(i.cuda_id) for i in job.gpus])
         self.send_msg(msg, job.address)
 
-    def send_msg(self, msg, address):
+    def send_msg(self, msg: str, address: str):
         try:  # if client can not be reached assume it crashed 
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,7 +32,7 @@ class Server(object):
         except Exception as e:
             pass
 
-    def add_job(self, job_request):
+    def add_job(self, job_request: str):
         fields = job_request.split(',')
         job_id = int(fields[0])
         address = (fields[1], int(fields[2]))
@@ -48,11 +45,11 @@ class Server(object):
         depends_on = []
         if len(fields[9]) > 0:
             depends_on = [int(i) for i in fields[9].split('+')]
-        job = Job(address, n_gpus, threads, memory, hours, name, user, depends_on)
+        job = Job(job_id, address, n_gpus, threads, memory, hours, name, user, depends_on)
         job_accepted = self.scheduler.submit_job(job_id, job)
         return 'accept' if job_accepted else 'requested resources exceed resources reserved for the queue'
 
-    def qinfo(self, connection):
+    def qinfo(self, connection: socket.socket):
         msg = 'Used resources:\n' \
               + 'threads: ' + str(self.scheduler.resources.threads - self.scheduler.free_resources.threads) + '/' + str(
             self.scheduler.resources.threads) + '\n' \
@@ -62,7 +59,7 @@ class Server(object):
             self.scheduler.gpu_tree.total())
         connection.sendall(msg.encode())
 
-    def qstat(self, connection, verbose=False):
+    def qstat(self, connection: socket.socket, verbose=False):
         for job_id in sorted(self.scheduler.running_jobs):
             connection.sendall((self.scheduler.jobs[job_id].to_string(job_id, 'r', verbose)).encode())
             connection.recv(1024).decode()  # wait for feedback
@@ -73,7 +70,7 @@ class Server(object):
             connection.sendall((self.scheduler.jobs[job_id].to_string(job_id, 'h', verbose)).encode())
             connection.recv(1024).decode()  # wait for feedback
 
-    def qdel(self, connection):
+    def qdel(self, connection: socket.socket):
         try:
             message = ':'
 
@@ -116,7 +113,7 @@ class Server(object):
         except Exception as e:
             self.scheduler.schedule()
 
-    def handle_connection(self, connection):
+    def handle_connection(self, connection: socket.socket):
         try:
             # receive data
             msg = connection.recv(1024).decode()
