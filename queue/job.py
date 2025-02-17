@@ -5,16 +5,17 @@ import threading
 import os
 import signal
 import datetime
-import random
+import pathlib as pl
 import argparse
 import socket
 from block_parser import Block_Parser
+from typing import Tuple, List, Dict
 
 
 ### JOB ###
 class Job(object):
 
-    def __init__(self, requests, job_id, subtask_id, depends_on, user):
+    def __init__(self, requests: Dict, job_id: int, subtask_id: int, depends_on: List[int], user: str):
         # requests information (name, requested resources, subtasks, script)
         self.requests = requests
         # job name
@@ -39,7 +40,7 @@ class Job(object):
 ### EXECUTABLE JOB ###
 class Executable_Job(Job):
 
-    def __init__(self, requests, job_id, subtask_id, depends_on, user, server_address):
+    def __init__(self, requests: Dict, job_id: int, subtask_id: int, depends_on: List[int], user: str, server_address: Tuple[str,int]):
         super( Executable_Job, self ).__init__(requests, job_id, subtask_id, depends_on, user)
         self.tmp_script_file = None
         self.is_running = False
@@ -53,7 +54,7 @@ class Executable_Job(Job):
         self.qlog = None
 
 
-    def write_log(self, msg):
+    def write_log(self, msg: str):
         if self.qlog == None:
             print(msg)
         else:
@@ -153,7 +154,7 @@ class Executable_Job(Job):
         self.finalize()
 
 
-    def wait_for_message(self, pid):
+    def wait_for_message(self, pid: int):
         while True:
             connection, from_address = self.listener.accept()
             received = connection.recv(1024).decode()
@@ -220,7 +221,7 @@ def main():
     arg_parser.add_argument('--user', type=str, default='dummy', help='user who submitted the job')
     args = arg_parser.parse_args()
 
-    script = args.script[0]
+    script = pl.Path(args.script[0])
     script_params = args.script[1:]
     server_address = (args.server_ip, args.server_port)
     if args.depends_on == '':

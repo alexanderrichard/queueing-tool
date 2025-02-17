@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-import re
+import re, pathlib as pl
+from typing import List, Dict, Tuple
 
 class Block(object):
 
@@ -42,7 +43,7 @@ class Block_Parser(object):
     def __init__(self):
         self.blocks = []
 
-    def _parse_block(self, block):
+    def _parse_block(self, block: List[str]) -> Block:
         # convert gpu=True/gpu=False to gpus=1/gpus=0 for compatibility with old scripts
         block[0] = re.sub('gpu=true', 'gpus=1', block[0])
         block[0] = re.sub('gpu=false', 'gpus=0', block[0])
@@ -61,7 +62,7 @@ class Block_Parser(object):
         parsed_block.check()
         return parsed_block
 
-    def parse(self, script):
+    def parse(self, script: pl.Path) -> List[Block]:
         try:
             f = open(script, 'r')
             content = f.read().split('\n')

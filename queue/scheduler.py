@@ -4,11 +4,12 @@ import datetime, random, re
 from typing import List, Dict, Tuple
 
 class GPUTreeNode(object):
-    def __init__(self, cuda_id=None, left=None, right=None):
+    def __init__(self, cuda_id=None, left=None, right=None, reserved=False):
         self.cuda_id = cuda_id
         self.left = left
         self.right = right
-        self._free = 1 if cuda_id is not None else None
+        self._free = int(not reserved) if cuda_id is not None else None
+        self._reserved = reserved if cuda_id is not None else None
 
     @property
     def free(self):
@@ -25,7 +26,7 @@ class GPUTreeNode(object):
         if self._free is not None:
             self._free = int(free)
 
-    def get_continuous_free(self, gpu_count):
+    def get_continuous_free(self, gpu_count) -> int:
         gpus = self.get_gpus()
         count = 0
         for i in range(max(1,1+len(gpus) - gpu_count)):
@@ -34,19 +35,19 @@ class GPUTreeNode(object):
                 count = free
         return count
 
-    def total(self):
-        total, used, l_used, r_used = 0,0,0,0
+    def total(self) -> Tuple[int,int,int,int]:
+        total, used, l_used, r_used = 0, 0, 0, 0
         if self.cuda_id is not None:
-            total += 1
+            total += int(not self._reserved)
             used = int(not bool(self.free))
         else:
-            l, l_used, _, __ = self.left.total() if self.left is not None else 0
-            r, r_used, _, __ = self.right.total() if self.right is not None else 0
+            l, l_used, _, __ = self.left.total() if self.left is not None else (0,0,0,0)
+            r, r_used, _, __ = self.right.total() if self.right is not None else (0,0,0,0)
             total += l + r
             used = l_used + r_used
         return total, used, l_used, r_used
 
-    def get_free_gpus(self, amount, traverse_dir=True, continuous=True):
+    def get_free_gpus(self, amount: int, traverse_dir=True, continuous=True) -> List:
         gpus = []
         first_trav = self.left if traverse_dir else self.right
         second_trav = self.right if traverse_dir else self.left
@@ -70,7 +71,7 @@ class GPUTreeNode(object):
             gpus.append(self)
         return gpus
 
-    def get_gpus(self):
+    def get_gpus(self) -> List:
         gpus = []
         if self.cuda_id is None:
             l_gpus = self.left.get_gpus()
@@ -89,12 +90,12 @@ class GPUTree(object):
     def __init__(self):
         self._head: GPUTreeNode = None
 
-    def build_tree(self, cuda_ids: list):  # list of tuples. first val cuda id, second val: state (occupied/free)
+    def build_tree(self, cuda_ids: List[Tuple[int,bool]]):  # list of tuples. first val cuda id, second val: is GPU reserved for outside
         cuda_ids.sort()
         bottom_leaves = list()
         for c_id in cuda_ids:
-            node = GPUTreeNode(c_id[0])
-            node.free = c_id[1]
+            node = GPUTreeNode(c_id[0], reserved=c_id[1])
+            node.free = not c_id[1]
             bottom_leaves.append(node)
         roots = list()
         while len(roots) != 1:
@@ -106,7 +107,7 @@ class GPUTree(object):
             bottom_leaves = roots
         self._head = roots.pop(0)
 
-    def reserveGPUs(self, amount):
+    def reserveGPUs(self, amount: int) -> List[GPUTreeNode]:
         total_gpus, total_used, left_used, right_used = self._head.total()  # used means at least partly used, doesn't mean its fully used.
         direction = True
         direction_needed = (left_used > 0) ^ (right_used > 0)
@@ -131,7 +132,7 @@ class GPUTree(object):
             print(amount)
         return gpu_list
 
-    def total(self):
+    def total(self) -> int:
         count, a, b, c = self._head.total()
         return count
 
@@ -168,7 +169,7 @@ class Job(object):
         self.priority = 0.0
         self.reset_elapsed_time()
 
-    def to_string(self, job_id: int, status: str, verbose=False):
+    def to_string(self, job_id: int, status: str, verbose=False) -> str:
         s = '|' + str(job_id).zfill(7)
         s += ' ' + self.name[0:16].rjust(16)
         s += '  ' + self.time.strftime('%d-%m-%Y %H:%M:%S')
@@ -187,14 +188,14 @@ class Job(object):
         s += '|'
         return s
 
-    def fits(self, resources):
+    def fits(self, resources) -> bool:
         return self.resources <= resources
 
     def reset_elapsed_time(self):
         self.time = datetime.datetime.now()
 
     @property
-    def elapsed_time(self):
+    def elapsed_time(self) -> float:
         return max(1.0, (datetime.datetime.now() - self.time).total_seconds())  # waiting time/running time of the job
 
 
@@ -249,7 +250,7 @@ class Scheduler(object):
         for job in joblist:
             job.priority = job.priority / max_priority
 
-    def waiting_time(self, job: Job, running_jobs: List[Job]):
+    def waiting_time(self, job: Job, running_jobs: List[Job]) -> int:
         # sort jobs by remaining runtime (in seconds)
         runtimes = [max(1, j.hours * 3600 - j.elapsed_time) for j in running_jobs]
         runtimes, sorted_jobs = list(zip(*sorted(zip(runtimes, running_jobs))))
@@ -337,7 +338,7 @@ class Scheduler(object):
             if reschedule:
                 self.schedule()
 
-    def submit_job(self, job_id: int, job: Job):
+    def submit_job(self, job_id: int, job: Job) -> bool:
         # check if job can be executed with the given resources
         fits_resources = job.fits(self.resources)
         if fits_resources:  # put job into queue
@@ -351,7 +352,7 @@ class Scheduler(object):
                 self.held_jobs.append(job_id)
         return fits_resources
 
-    def find_jobs(self, specifier: str, to_delete: str):
+    def find_jobs(self, specifier: str, to_delete: str) -> List[int]:
         joblist = []
         # find relevant jobs
         for job_id in self.jobs:

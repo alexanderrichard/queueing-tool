@@ -32,7 +32,7 @@ class Server(object):
         except Exception as e:
             pass
 
-    def add_job(self, job_request: str):
+    def add_job(self, job_request: str) -> str:
         fields = job_request.split(',')
         job_id = int(fields[0])
         address = (fields[1], int(fields[2]))
@@ -166,7 +166,7 @@ def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('--port', type=int, default=1234, help='port to listen on')
     arg_parser.add_argument('--gpus', type=str, default='', help='comma separated list of available gpu device ids')
-    arg_parser.add_argument('--ignore-gpus', type=str, default='',
+    arg_parser.add_argument('--ignore_gpus', type=str, default='',
                             help='comma separated list of externally reserved gpu device ids')
     arg_parser.add_argument('--threads', type=int, default=8, help='number of available threads/cores')
     arg_parser.add_argument('--memory', type=int, default=4096, help='available main memory in mb')
@@ -175,7 +175,9 @@ def main():
 
     gpus = []
     if not args.gpus == '':
-        gpus = [(int(i), True) for i in args.gpus.split(',')]
+        gpus = [(int(i), False) for i in args.gpus.split(',')]
+    if not args.ignore_gpus == '':
+        gpus += [(int(i), True) for i in args.ignore_gpus.split(',')] # Add GPUs that shall be ignored/marked as reserved when scheduling.
     server = Server(args.port, gpus, args.threads, args.memory, args.abort_on_time_limit)
     server.run()
 
