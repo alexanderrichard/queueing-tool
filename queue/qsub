@@ -48,7 +48,7 @@ def submit_job(script: str, server_address: Tuple[str,int], block_idx: int, job_
          + ' --user=' + os.getenv('USER')
     if len(depends_on) > 0:
         args = args + ' --depends_on=' + ','.join([ str(i) for i in depends_on ])
-    os.system('./job.py' + args + ' ' + script_str + ' &')
+    os.system('job.py' + args + ' ' + script_str + ' &')
 
 
 def select_blocks(script: pl.Path, start_block: str, only_start_block=False) -> Tuple[List[Block],List[int]]:
