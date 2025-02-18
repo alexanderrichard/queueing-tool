@@ -102,10 +102,10 @@ class Executable_Job(Job):
         now = datetime.datetime.now()
         elapsed = now - self.time
         self.write_log('----------------- end -----------------')
-        self.write_log('%s' % (now.strftime('%a %b %d %Y %H:%M:%S')) )
-        self.write_log('elapsed time: %s:%s:%s' % ( str(elapsed.days * 24 + (elapsed.seconds / 3600)).zfill(3),
-                                                    str((elapsed.seconds / 60) % 60).zfill(2),
-                                                    str(elapsed.seconds % 60).zfill(2) ))
+        self.write_log('%s' % (now.strftime('%a %b %d %Y %H:%M:%S')))
+        self.write_log('elapsed time: %s:%s:%s' % (str(elapsed.days * 24 + (elapsed.seconds // 3600)).zfill(3),
+                                                str((elapsed.seconds // 60) % 60).zfill(2),
+                                                str(elapsed.seconds % 60).zfill(2)))
         self.write_log('---------------------------------------')
         if not self.qlog == None:
             self.qlog.close()
