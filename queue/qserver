@@ -1,128 +1,30 @@
 #!/usr/bin/python3
 
-import socket
-import time
-import datetime
-import argparse
-import re
-from scheduler import Scheduler
-
-class Job(object):
-
-    def __init__(self, address, n_gpus, threads, memory, hours, name, user, depends_on):
-        self.address = address
-        self.n_gpus = n_gpus
-        self.gpus = []
-        self.threads = threads
-        self.memory = memory
-        self.hours = hours
-        self.name = name
-        self.user = user
-        self.depends_on = depends_on
-        self.time = datetime.datetime.now()
-        self.priority = 0.0
-
-    def to_string(self, job_id, status, verbose = False):
-        s = '|' + str(job_id).zfill(7)
-        s += ' ' + self.name[0:16].rjust(16)
-        s += '  ' + self.time.strftime('%d-%m-%Y %H:%M:%S')
-        s += '       ' + status
-        s += '  ' + self.user[0:11].rjust(11)
-        # priority only exists for waiting jobs
-        if status == 'w':
-            s += ('%.5f' % self.priority).rjust(10)
-        else:
-            s += '-'.rjust(10)
-        if verbose:
-            s += '  ' + str(self.threads).rjust(7)
-            s += '  ' + str(self.memory).rjust(6) + 'mb'
-            s += '  ' + str(self.hours).rjust(9) + 'h'
-            s += '  ' + str(self.n_gpus).rjust(4)
-        s += '|'
-        return s
+import socket, argparse, re
+from scheduler import Scheduler, Job
+from typing import List, Tuple
 
 
 class Server(object):
 
-    def __init__(self, port, gpus, threads, memory, abort_on_time_limit):
+    def __init__(self, port: int, gpus: List[Tuple[int, bool]], threads: int, memory: int, abort_on_time_limit: bool):
         # socket
-        self.listener = socket.socket( socket.AF_INET,  socket.SOCK_STREAM )
+        self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.listener.bind( ('localhost', port) )
-        # resources
-        self.gpus = gpus
-        self.threads = threads
-        self.memory = memory
-        self.abort_on_time_limit = abort_on_time_limit
-        # free resources
-        self.free_gpus = gpus
-        self.free_threads = threads
-        self.free_memory = memory
+        self.listener.bind(('localhost', port))
         # running job id
         self.next_job_id = 1
-        # dict mapping job_ids to jobs
-        self.jobs = dict()
-        self.running_jobs = []
-        self.waiting_jobs = []
-        self.held_jobs = []
+        self.scheduler = Scheduler(gpus, threads, memory, abort_on_time_limit)
+        self.scheduler.on_job_start_callback = self.on_job_start_callback
 
+    def on_job_start_callback(self, job: Job):
+        msg = 'run:' + ','.join([str(i.cuda_id) for i in job.gpus])
+        self.send_msg(msg, job.address)
 
-    def update_priorities(self):
-        now = datetime.datetime.now()
-        joblist = [ self.jobs[job_id] for job_id in self.waiting_jobs ]
-        if len(joblist) == 0:
-            return
-        # sum of all requests
-        n_gpus = max(1, sum( [ job.n_gpus for job in joblist ] ))
-        threads = sum( [ job.threads for job in joblist ] )
-        memory = sum( [ job.memory for job in joblist ] )
-        hours = sum( [ job.hours for job in joblist ] )
-        # waiting times of each job and sum of all waiting times (measure in hours)
-        waiting_times = [ max(1, int((now - job.time).total_seconds() / 3600)) for job in joblist ]
-        acc_waiting_time = sum(waiting_times)
-        # priority for each job is the waiting time divided by the requested resources
-        for idx, job in enumerate(joblist):
-            job.priority = float(waiting_times[idx]) / acc_waiting_time
-            job.priority /= max(float(job.n_gpus) / n_gpus, float(job.threads) / threads, float(job.memory) / memory) + float(job.hours) / hours
-        ## if a user already has a running job, decrease his priority
-        for job in joblist:
-            user_job_fraction = 0.0
-            if len(self.running_jobs) > 0:
-                user_job_fraction = len([ 0 for j in self.running_jobs if self.jobs[j].user == job.user ]) / float(len(self.running_jobs))
-            running_jobs_penalty = max(0.001, 1.0 - user_job_fraction)
-            job.priority *= running_jobs_penalty
-        # normalize such that max priority is one
-        max_priority = max( [ job.priority for job in joblist ] )
-        for job in joblist:
-            job.priority = job.priority / max_priority
-
-
-    def start_job(self, job_id):
-        # start_jobs assume that job fits into free resources
-        self.jobs[job_id].time = datetime.datetime.now() # running time starts now
-        self.free_threads -= self.jobs[job_id].threads
-        self.free_memory -= self.jobs[job_id].memory
-        self.jobs[job_id].gpus = self.free_gpus[0:self.jobs[job_id].n_gpus]
-        self.free_gpus = self.free_gpus[self.jobs[job_id].n_gpus:]
-        msg = 'run:' + ','.join( [str(i) for i in self.jobs[job_id].gpus] )
-        self.send_msg(msg, self.jobs[job_id].address)
-
-
-    def schedule(self):
-        scheduler = Scheduler(len(self.free_gpus), self.free_threads, self.free_memory)
-        job_id = scheduler.schedule(self.jobs, self.waiting_jobs, self.running_jobs)
-        while not job_id == None:
-            self.start_job(job_id)
-            self.waiting_jobs.remove(job_id)
-            self.running_jobs.append(job_id)
-            self.update_priorities()
-            scheduler.update_resources(len(self.free_gpus), self.free_threads, self.free_memory)
-            job_id = scheduler.schedule(self.jobs, self.waiting_jobs, self.running_jobs)
-
-    def send_msg(self, msg, address):
+    def send_msg(self, msg: str, address: str):
         try:  # if client can not be reached assume it crashed 
 
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(address)
             sock.sendall(msg.encode())
             sock.close()
@@ -130,48 +32,10 @@ class Server(object):
         except Exception as e:
             pass
 
-    def delete_job(self, job_id, reschedule = True):
-
-        # remove job_id from dependencies
-        held = list(set(self.held_jobs) - set([job_id]))
-        for j in held:
-            if job_id in self.jobs[j].depends_on:
-                self.jobs[j].depends_on.remove(job_id)
-                # if no dependencies left, held jobs switches to waiting
-                if len(self.jobs[j].depends_on) == 0:
-
-                    self.held_jobs.remove(j)
-                    self.waiting_jobs.append(j)
-                    self.jobs[j].time = datetime.datetime.now() # waiting time starts now
-                    self.update_priorities()
-
-    
-        # remove job from job container
-        job = self.jobs.pop(job_id, None)
-
-        ### delete a held or waiting job ###
-        if job_id in self.waiting_jobs:
-
-            self.waiting_jobs.remove(job_id)
-            self.update_priorities()
-        elif job_id in self.held_jobs:
-
-            self.held_jobs.remove(job_id)
-        elif job_id in self.running_jobs:
-
-            # free resources
-            self.free_gpus = self.free_gpus + job.gpus
-            self.free_memory = self.free_memory + job.memory
-            self.free_threads = self.free_threads + job.threads
-            self.running_jobs.remove(job_id)
-            if reschedule:
-                self.schedule()
-
-
-    def add_job(self, job_request):
+    def add_job(self, job_request: str) -> str:
         fields = job_request.split(',')
         job_id = int(fields[0])
-        address = ( fields[1], int(fields[2]) )
+        address = (fields[1], int(fields[2]))
         name = fields[3]
         threads = int(fields[4])
         memory = int(fields[5])
@@ -180,42 +44,33 @@ class Server(object):
         user = fields[8]
         depends_on = []
         if len(fields[9]) > 0:
-            depends_on = [ int(i) for i in fields[9].split('+') ]
-        # check if job can be executed with the given resources
-        if (memory > self.memory) or (threads > self.threads) or (n_gpus > len(self.gpus)):
-            reply = 'requested resources exceed resources reserved for the queue'
-        else: # put job into queue
-            self.jobs[job_id] = Job(address, n_gpus, threads, memory, hours, name, user, depends_on)
-            if len(depends_on) == 0:
-                self.waiting_jobs.append(job_id)
-                self.update_priorities()
-                self.schedule()
-            else:
-                self.held_jobs.append(job_id)
-            reply = 'accept'
-        return reply
+            depends_on = [int(i) for i in fields[9].split('+')]
+        job = Job(job_id, address, n_gpus, threads, memory, hours, name, user, depends_on)
+        job_accepted = self.scheduler.submit_job(job_id, job)
+        return 'accept' if job_accepted else 'requested resources exceed resources reserved for the queue'
 
-
-    def qinfo(self, connection):
+    def qinfo(self, connection: socket.socket):
         msg = 'Used resources:\n' \
-            + 'threads: ' + str(self.threads - self.free_threads) + '/' + str(self.threads) + '\n' \
-            + 'memory:  ' + str(self.memory - self.free_memory) + '/' + str(self.memory) + '\n' \
-            + 'gpus:    ' + str(len(self.gpus) - len(self.free_gpus)) + '/' + str(len(self.gpus))
+              + 'threads: ' + str(self.scheduler.resources.threads - self.scheduler.free_resources.threads) + '/' + str(
+            self.scheduler.resources.threads) + '\n' \
+              + 'memory:  ' + str(self.scheduler.resources.memory - self.scheduler.free_resources.memory) + '/' + str(
+            self.scheduler.resources.memory) + '\n' \
+              + 'gpus:    ' + str(self.scheduler.gpu_tree.total() - self.scheduler.gpu_tree.free) + '/' + str(
+            self.scheduler.gpu_tree.total())
         connection.sendall(msg.encode())
 
+    def qstat(self, connection: socket.socket, verbose=False):
+        for job_id in sorted(self.scheduler.running_jobs):
+            connection.sendall((self.scheduler.jobs[job_id].to_string(job_id, 'r', verbose)).encode())
+            connection.recv(1024).decode()  # wait for feedback
+        for job_id in sorted(self.scheduler.waiting_jobs):
+            connection.sendall((self.scheduler.jobs[job_id].to_string(job_id, 'w', verbose)).encode())
+            connection.recv(1024).decode()  # wait for feedback
+        for job_id in sorted(self.scheduler.held_jobs):
+            connection.sendall((self.scheduler.jobs[job_id].to_string(job_id, 'h', verbose)).encode())
+            connection.recv(1024).decode()  # wait for feedback
 
-    def qstat(self, connection, verbose = False):
-        for job_id in sorted(self.running_jobs):
-            connection.sendall((self.jobs[job_id].to_string(job_id, 'r', verbose)).encode())
-            connection.recv(1024).decode() # wait for feedback
-        for job_id in sorted(self.waiting_jobs):
-            connection.sendall((self.jobs[job_id].to_string(job_id, 'w', verbose)).encode())
-            connection.recv(1024).decode() # wait for feedback
-        for job_id in sorted(self.held_jobs):
-            connection.sendall((self.jobs[job_id].to_string(job_id, 'h', verbose)).encode())
-            connection.recv(1024).decode() # wait for feedback
-
-    def qdel(self, connection):
+    def qdel(self, connection: socket.socket):
         try:
             message = ':'
 
@@ -225,88 +80,75 @@ class Server(object):
                 msg = connection.recv(1024).decode()
 
                 assert msg != ''
-                
+
                 specifier = msg.split(':')[0]
                 to_delete = re.sub('\*', '.*', msg.split(':')[1])
                 user = msg.split(':')[2]
+                joblist = self.scheduler.find_jobs(specifier, to_delete)
 
-                
-                joblist = []
-                # find relevant jobs
-                for job_id in self.jobs:
-                    if (specifier == 'name') and (re.match(to_delete, self.jobs[job_id].name) != None):
-                        joblist.append(job_id)
-                    elif (specifier == 'user') and (re.match(to_delete, self.jobs[job_id].user) != None):
-                        joblist.append(job_id)
-                    elif (specifier == 'id') and (job_id == int(to_delete)):
-                        joblist.append(job_id)
                 # delete jobs
                 if len(joblist) == 0:
-
                     message = f'no job with {specifier} {to_delete} found'
                     connection.sendall(message.encode())
                     connection.recv(1024).decode()  # wait for acknowledgement by client
-                
+
                 for job_id in sorted(joblist):
-                    if (user == 'root') or (user == self.jobs[job_id].user):
+                    if (user == 'root') or (user == self.scheduler.jobs[job_id].user):
 
-                        message = f'delete job {job_id} ({self.jobs[job_id].name})'
-                        connection.sendall(message.encode())
-                        connection.recv(1024).decode() # wait for acknowledgement by client
-
-                        self.send_msg('delete', self.jobs[job_id].address)
-                        self.delete_job(job_id, False)
-                    else:
-
-                        message = f'delete job {job_id} ({self.jobs[job_id].name}): permission denied'
+                        message = f'delete job {job_id} ({self.scheduler.jobs[job_id].name})'
                         connection.sendall(message.encode())
                         connection.recv(1024).decode()  # wait for acknowledgement by client
-                
+
+                        self.send_msg('delete', self.scheduler.jobs[job_id].address)
+                        self.scheduler.delete_job(job_id, False)
+                    else:
+
+                        message = f'delete job {job_id} ({self.scheduler.jobs[job_id].name}): permission denied'
+                        connection.sendall(message.encode())
+                        connection.recv(1024).decode()  # wait for acknowledgement by client
+
                 message = ':'
                 connection.sendall(message.encode())
 
         except Exception as e:
+            self.scheduler.schedule()
 
-            self.schedule()
-            
-    def handle_connection(self, connection):
+    def handle_connection(self, connection: socket.socket):
         try:
             # receive data
             msg = connection.recv(1024).decode()
 
-            
             # handle data
-            if (msg[0:7] == 'timeout') and (self.abort_on_time_limit): # timeout
+            if (msg[0:7] == 'timeout') and self.scheduler.abort_on_time_limit:  # timeout
 
                 job_id = int(msg[8:])
-                self.send_msg('timeout', self.jobs[job_id].address)
-                self.delete_job(job_id)
-            elif msg[0:7] == 'request': # request
+                self.send_msg('timeout', self.scheduler.jobs[job_id].address)
+                self.scheduler.delete_job(job_id)
+            elif msg[0:7] == 'request':  # request
 
                 reply = self.add_job(msg[8:])
                 connection.sendall(reply.encode())
-            elif msg[0:8] == 'finished': # job finished
+            elif msg[0:8] == 'finished':  # job finished
 
                 job_id = int(msg[9:])
-                if job_id in self.jobs:
-                    self.send_msg('finished', self.jobs[job_id].address)
-                    self.delete_job(job_id)
-            elif msg == 'get_id': # request job id
+                if job_id in self.scheduler.jobs:
+                    self.send_msg('finished', self.scheduler.jobs[job_id].address)
+                    self.scheduler.delete_job(job_id)
+            elif msg == 'get_id':  # request job id
 
                 connection.sendall(str(self.next_job_id).encode())
                 self.next_job_id = max(1, (self.next_job_id + 1) % 10000000)
-            elif msg == 'qdel': # delete job
+            elif msg == 'qdel':  # delete job
 
                 self.qdel(connection)
-            elif msg[0:5] == 'qstat': # print queue
+            elif msg[0:5] == 'qstat':  # print queue
 
                 verbose = True if msg.split(':')[1] == 'verbose' else False
                 self.qstat(connection, verbose)
-            elif msg == 'qinfo': # print resource information
+            elif msg == 'qinfo':  # print resource information
 
                 self.qinfo(connection)
         except Exception as e:
-
             return
 
     def run(self):
@@ -321,22 +163,26 @@ class Server(object):
 
 
 def main():
-
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('--port', type=int, default=1234, help='port to listen on')
     arg_parser.add_argument('--gpus', type=str, default='', help='comma separated list of available gpu device ids')
-    arg_parser.add_argument('--threads', type=int, default=1, help='number of available threads/cores')
+    arg_parser.add_argument('--ignore_gpus', type=str, default='',
+                            help='comma separated list of externally reserved gpu device ids')
+    arg_parser.add_argument('--threads', type=int, default=8, help='number of available threads/cores')
     arg_parser.add_argument('--memory', type=int, default=4096, help='available main memory in mb')
     arg_parser.add_argument('--abort_on_time_limit', action='store_true', help='kill jobs if time limit is exceeded')
     args = arg_parser.parse_args()
 
     gpus = []
+    ignored_gpus = {int(i) for i in args.ignore_gpus.split(',') if i}
+    available_gpus = {int(i) for i in args.gpus.split(',') if i}.difference(ignored_gpus)
     if not args.gpus == '':
-        gpus = [ int(i) for i in args.gpus.split(',') ]
+        gpus = [(i, False) for i in available_gpus]
+    if not args.ignore_gpus == '':
+        gpus += [(i, True) for i in ignored_gpus] # Add GPUs that shall be ignored/marked as reserved when scheduling.
     server = Server(args.port, gpus, args.threads, args.memory, args.abort_on_time_limit)
     server.run()
 
+
 if __name__ == '__main__':
     main()
-
-

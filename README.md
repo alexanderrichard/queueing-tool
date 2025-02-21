@@ -83,6 +83,7 @@ Options:
 
     --port PORT            port to listen on (default: 1234)
     --gpus GPUS            comma separated list of available gpu device ids
+    --ignore_gpus GPUS     comma separated list of externally reserved gpu device ids
     --threads THREADS      number of available threads/cores
     --memory MEMORY        available main memory in mb
     --abort_on_time_limit  kill jobs if time limit is exceeded
