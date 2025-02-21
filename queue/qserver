@@ -174,10 +174,12 @@ def main():
     args = arg_parser.parse_args()
 
     gpus = []
+    ignored_gpus = {int(i) for i in args.ignore_gpus.split(',') if i}
+    available_gpus = {int(i) for i in args.gpus.split(',') if i}.difference(ignored_gpus)
     if not args.gpus == '':
-        gpus = [(int(i), False) for i in args.gpus.split(',')]
+        gpus = [(i, False) for i in available_gpus]
     if not args.ignore_gpus == '':
-        gpus += [(int(i), True) for i in args.ignore_gpus.split(',')] # Add GPUs that shall be ignored/marked as reserved when scheduling.
+        gpus += [(i, True) for i in ignored_gpus] # Add GPUs that shall be ignored/marked as reserved when scheduling.
     server = Server(args.port, gpus, args.threads, args.memory, args.abort_on_time_limit)
     server.run()
 
